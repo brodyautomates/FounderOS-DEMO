@@ -79,6 +79,7 @@ const ROUTES: RouteEntry[] = [
   { route: 'trading', load: () => import('@/app/api/trading/route'), url: 'http://localhost/api/trading' },
   { route: 'trading/limits', load: () => import('@/app/api/trading/limits/route'), url: 'http://localhost/api/trading/limits' },
   { route: 'social', load: () => import('@/app/api/social/route'), url: 'http://localhost/api/social' },
+  { route: 'settings', load: () => import('@/app/api/settings/route'), url: 'http://localhost/api/settings' },
   { route: 'social/[platform]', load: () => import('@/app/api/social/[platform]/route'), url: 'http://localhost/api/social/instagram', params: { platform: 'instagram' } },
   { route: 'social/history', load: () => import('@/app/api/social/history/route'), url: 'http://localhost/api/social/history?limit=6' },
   { route: 'social/posts', load: () => import('@/app/api/social/posts/route'), url: 'http://localhost/api/social/posts' },

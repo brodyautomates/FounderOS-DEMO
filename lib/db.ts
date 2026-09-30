@@ -2,6 +2,9 @@ import { UsageSnapshotSchema, type SeatUsage } from '@/lib/usage';
 import Database from 'better-sqlite3';
 import { isValidCron } from '@/lib/cron';
 import {
+  AppSettingSchema,
+  DEMO_DATA_KEY,
+  type AppSetting,
   AgentCronSchema,
   PlaudIngestSchema,
   CronRunSchema,
@@ -501,6 +504,11 @@ CREATE TABLE IF NOT EXISTS skills (
   tools TEXT NOT NULL DEFAULT '[]',
   markdown TEXT NOT NULL DEFAULT '',
   ord INTEGER NOT NULL DEFAULT 0
+);
+CREATE TABLE IF NOT EXISTS app_settings (
+  key TEXT PRIMARY KEY,
+  value TEXT NOT NULL,
+  updated_at TEXT NOT NULL
 );
 `;
 
@@ -1991,6 +1999,18 @@ export function openDb(path: string) {
         'INSERT OR REPLACE INTO funnel_touches (id, contact_id, seq, stage, channel, label, source, at) VALUES (?, ?, ?, ?, ?, ?, ?, ?)',
       ).run(t.id, t.contactId, t.seq, t.stage, t.channel, t.label, t.source, t.at);
     },
+    /**
+     * Deletes contacts and their touches by id prefix. The additive demo layer
+     * (lib/seed-demo.ts) is the only caller: every row it writes is prefixed
+     * `demo-`, so this removes exactly that layer and cannot touch the seeded
+     * baseline or any real row.
+     */
+    deleteByIdPrefix(prefix: string): void {
+      if (!prefix) throw new Error('deleteByIdPrefix needs a non-empty prefix');
+      const like = `${prefix}%`;
+      db.prepare('DELETE FROM funnel_touches WHERE contact_id LIKE ?').run(like);
+      db.prepare('DELETE FROM funnel_contacts WHERE id LIKE ?').run(like);
+    },
     /** Contacts with their touches in journey order, newest contact first. */
     journeys(venture?: FunnelVenture): FunnelJourney[] {
       const rows = (
@@ -2040,6 +2060,30 @@ export function openDb(path: string) {
     },
   };
 
+  const rowToSetting = (r: any): AppSetting =>
+    AppSettingSchema.parse({ key: r.key, value: r.value, updatedAt: r.updated_at });
+
+  const settings = {
+    set(key: string, value: string): void {
+      const row: AppSetting = { key, value, updatedAt: new Date().toISOString() };
+      AppSettingSchema.parse(row);
+      db.prepare(
+        'INSERT OR REPLACE INTO app_settings (key, value, updated_at) VALUES (?, ?, ?)',
+      ).run(row.key, row.value, row.updatedAt);
+    },
+    get(key: string): AppSetting | null {
+      const r = db.prepare('SELECT * FROM app_settings WHERE key = ?').get(key);
+      return r ? rowToSetting(r) : null;
+    },
+    all(): AppSetting[] {
+      return db.prepare('SELECT * FROM app_settings ORDER BY key').all().map(rowToSetting);
+    },
+    /** Absent means off — a fresh clone shows the shipped seed only. */
+    isDemoDataOn(): boolean {
+      return this.get(DEMO_DATA_KEY)?.value === 'on';
+    },
+  };
+
   return {
     meta,
     departments,
@@ -2075,6 +2119,7 @@ export function openDb(path: string) {
     deliverableDecisions,
     workflows,
     skills,
+    settings,
     close: () => db.close(),
   };
 }

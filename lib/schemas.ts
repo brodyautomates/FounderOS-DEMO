@@ -890,3 +890,16 @@ export type WorkflowStep = z.infer<typeof WorkflowStepSchema>;
 export type Workflow = z.infer<typeof WorkflowSchema>;
 export type SkillStatus = z.infer<typeof SkillStatusSchema>;
 export type Skill = z.infer<typeof SkillSchema>;
+
+/** Persisted app-level preferences. Server-readable, so a page renders the
+ *  right state on first paint instead of flashing the default. */
+export const AppSettingSchema = z.object({
+  key: z.string().min(1),
+  value: z.string(),
+  updatedAt: z.string().min(1),
+});
+export type AppSetting = z.infer<typeof AppSettingSchema>;
+
+/** The one setting the demo layer reads. 'on' | 'off'; absent means off, so a
+ *  fresh clone shows exactly the shipped seed and nothing more. */
+export const DEMO_DATA_KEY = 'demo-data';

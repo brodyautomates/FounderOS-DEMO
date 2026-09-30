@@ -26,6 +26,7 @@ import {
   CandlestickChart,
   MessagesSquare,
   Gauge,
+  Settings as SettingsIcon,
   Crosshair,
   Waypoints,
 } from 'lucide-react';
@@ -68,6 +69,7 @@ export const NAV_INTELLIGENCE: NavItem[] = [
 export const NAV_SYSTEM: NavItem[] = [
   { href: '/integrations', label: 'Connections', icon: Plug },
   { href: '/usage', label: 'Usage', icon: Gauge },
+  { href: '/settings', label: 'Settings', icon: SettingsIcon },
   { href: '/roadmap', label: 'Roadmap', icon: Map },
   { href: '/analytics', label: 'Analytics', icon: BarChart3 },
   { href: '/reference', label: 'Reference Model', icon: LayoutGrid },
