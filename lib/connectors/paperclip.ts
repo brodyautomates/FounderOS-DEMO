@@ -255,8 +255,16 @@ async function fetchAgents(): Promise<PaperclipAgent[]> {
  * cached at import, so flipping the switch takes effect without a restart.
  * Dynamic import keeps the DB out of this module's static import graph, the
  * same way lib/brand-deals.ts reaches for it.
+ *
+ * Always false under test. getDb() resolves to the DEVELOPMENT database, so
+ * without this guard the honest-behaviour suites (paperclip-breaker,
+ * board-live) would pass or fail depending on where an operator happened to
+ * leave a UI switch. The demo layer is a runtime concern; tests that assert
+ * this connector fails honestly must never see it. Demo payloads are covered
+ * directly in tests/demo-board.test.ts instead.
  */
 async function demoDataOn(): Promise<boolean> {
+  if (process.env.VITEST || process.env.NODE_ENV === 'test') return false;
   try {
     const { getDb } = await import('@/lib/data');
     return getDb().settings.isDemoDataOn();
