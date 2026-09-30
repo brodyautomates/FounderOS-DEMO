@@ -2,7 +2,7 @@ import { PageHeader } from '@/components/PageHeader';
 import { SectionHead } from '@/components/terminal';
 import { DemoDataToggle } from '@/components/DemoDataToggle';
 import { getDb } from '@/lib/data';
-import { demoClientCount } from '@/lib/seed-demo';
+import { demoClientCount, demoRunCount } from '@/lib/seed-demo';
 
 export const dynamic = 'force-dynamic';
 
@@ -19,7 +19,7 @@ export default function SettingsPage() {
 
       <section className="mb-8">
         <SectionHead label="Data" />
-        <DemoDataToggle initialOn={demoOn} clientCount={demoClientCount()} />
+        <DemoDataToggle initialOn={demoOn} clientCount={demoClientCount()} runCount={demoRunCount()} />
       </section>
 
       <section>

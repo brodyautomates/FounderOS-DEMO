@@ -15,7 +15,7 @@
  * style and needs no migration.
  */
 import type { FounderDb } from '@/lib/db';
-import type { FunnelContact, FunnelTouch } from '@/lib/schemas';
+import type { AgentRun, FunnelContact, FunnelTouch } from '@/lib/schemas';
 
 export const DEMO_ID_PREFIX = 'demo-';
 
@@ -343,6 +343,82 @@ const DEMO_JOURNEYS: DemoJourney[] = [
   },
 ];
 
+/**
+ * Healthy agent runs.
+ *
+ * The shipped seed's run history is heavily weighted to failures (39 of 44
+ * today), so the home Operating Volume card reads "5 ok · 39 failed" — a
+ * business that looks broken rather than busy. These runs are purely additive
+ * and mostly successful, so with the switch on the ratio reads like a system
+ * that works. Turning it off restores the shipped numbers exactly.
+ */
+const DEMO_RUN_AGENTS: Array<[id: string, summary: string]> = [
+  ['client-roster', 'Reconciled roster against Ledger — 2 clients promoted'],
+  ['client-roster', 'Roster sweep: no drift against PayKit'],
+  ['comms-agent', 'Triaged 34 inbound, drafted 9 replies'],
+  ['comms-agent', 'Cleared the overnight inbox, 2 escalated'],
+  ['comms-digest', 'Built the morning digest — 6 items needing a human'],
+  ['gmail-worker', 'Labelled and threaded 61 messages'],
+  ['sales-agent', 'Advanced 11 deals, booked 3 calls'],
+  ['vantage-sales', 'Sent 120 outbound, 7 positive replies'],
+  ['launchpad-cohort-sales', 'Followed up 42 cohort applicants'],
+  ['crm-pulse', 'Synced 200 Attio records, 181 matched'],
+  ['postly-publisher', 'Scheduled 6 posts across 3 platforms'],
+  ['social-agent', 'Pulled follower deltas for 5 accounts'],
+  ['newsletter-agent', 'Drafted the weekly issue, 1 review note'],
+  ['payments-pulse', 'Matched 41 Stripe payouts to invoices'],
+  ['stripe-sales', 'Reconciled 18 checkout sessions'],
+  ['brand-deal-agent', 'Quoted 2 inbound sponsors, 1 negotiating'],
+];
+
+/** One run every ~40 minutes of working hours, 14 days back. */
+function demoRunRows(): AgentRun[] {
+  const out: AgentRun[] = [];
+  let seed = 424242;
+  const rand = () => ((seed = (seed * 1664525 + 1013904223) >>> 0) / 0x100000000);
+  const now = Date.now();
+  let n = 0;
+
+  for (let day = 13; day >= 0; day--) {
+    const d = new Date(now - day * 86_400_000);
+    const weekend = d.getDay() === 0 || d.getDay() === 6;
+    // Today carries extra weight on purpose: the shipped seed has 39 failed
+    // runs stamped today and nothing else, so a normal day's volume still
+    // leaves the home card reading mostly-failed. This buries that ratio
+    // under a realistic day of work instead of editing the seeded rows.
+    const perDay = day === 0 ? 96 + Math.floor(rand() * 14) : weekend ? 6 : 14 + Math.floor(rand() * 6);
+    for (let k = 0; k < perDay; k++) {
+      const [agentId, summary] = DEMO_RUN_AGENTS[Math.floor(rand() * DEMO_RUN_AGENTS.length)];
+      // 09:00–18:00 local-ish, spread across the day
+      const start = new Date(d);
+      start.setHours(9 + Math.floor(rand() * 9), Math.floor(rand() * 60), 0, 0);
+      if (start.getTime() > now) start.setTime(now - 60_000 * (1 + Math.floor(rand() * 90)));
+      const durMs = (30 + Math.floor(rand() * 600)) * 1000;
+      const tokensIn = 1200 + Math.floor(rand() * 9000);
+      const tokensOut = 300 + Math.floor(rand() * 2400);
+      out.push({
+        id: `demo-run-${n++}`,
+        agentId,
+        startedAt: start.toISOString(),
+        finishedAt: new Date(start.getTime() + durMs).toISOString(),
+        // ~4% fail — believable, not suspiciously perfect
+        ok: rand() > 0.04,
+        summary,
+        model: rand() > 0.5 ? 'claude-sonnet-5' : 'claude-haiku-4-5',
+        tokensIn,
+        tokensOut,
+        costUsd: Number(((tokensIn * 3 + tokensOut * 15) / 1_000_000).toFixed(4)),
+      });
+    }
+  }
+  return out;
+}
+
+/** How many runs the layer adds — surfaced in the Settings copy. */
+export function demoRunCount(): number {
+  return demoRunRows().length;
+}
+
 /** How many clients the layer adds — surfaced in the Settings copy. */
 export function demoClientCount(): number {
   return DEMO_JOURNEYS.length;
@@ -389,9 +465,11 @@ export function applyDemoData(db: FounderDb): void {
     db.funnel.insertContact(toContact(j));
     for (const t of toTouches(j)) db.funnel.insertTouch(t);
   }
+  for (const r of demoRunRows()) db.agentRuns.insert(r);
 }
 
 /** Deletes exactly what applyDemoData wrote, by id prefix. Nothing else. */
 export function removeDemoData(db: FounderDb): void {
   db.funnel.deleteByIdPrefix(DEMO_ID_PREFIX);
+  db.agentRuns.deleteByIdPrefix(DEMO_ID_PREFIX);
 }

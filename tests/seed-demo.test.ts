@@ -1,7 +1,7 @@
 import { afterEach, beforeEach, describe, expect, test } from 'vitest';
 import { openDb, type FounderDb } from '@/lib/db';
 import { seedDatabase } from '@/lib/seed';
-import { applyDemoData, removeDemoData, demoClientCount, DEMO_ID_PREFIX } from '@/lib/seed-demo';
+import { applyDemoData, removeDemoData, demoClientCount, demoRunCount, DEMO_ID_PREFIX } from '@/lib/seed-demo';
 
 let db: FounderDb;
 
@@ -89,7 +89,38 @@ describe('demo data layer', () => {
     expect(ventures.has('launchpad-cohort')).toBe(true);
   });
 
+  test('the layer adds agent runs, and off removes exactly those', () => {
+    const before = db.agentRuns.count();
+    applyDemoData(db);
+    expect(db.agentRuns.count()).toBe(before + demoRunCount());
+    removeDemoData(db);
+    expect(db.agentRuns.count()).toBe(before);
+  });
+
+  test('added runs all carry the demo id prefix', () => {
+    const before = new Set(db.agentRuns.recent(100000).map((r) => r.id));
+    applyDemoData(db);
+    const added = db.agentRuns.recent(100000).filter((r) => !before.has(r.id));
+    for (const r of added) expect(r.id.startsWith(DEMO_ID_PREFIX)).toBe(true);
+  });
+
+  test('added runs map to agents that actually exist in the roster', () => {
+    applyDemoData(db);
+    const roster = new Set(db.agents.all().map((a) => a.id));
+    const added = db.agentRuns.recent(100000).filter((r) => r.id.startsWith(DEMO_ID_PREFIX));
+    expect(added.length).toBeGreaterThan(0);
+    for (const r of added) expect(roster.has(r.agentId)).toBe(true);
+  });
+
+  test('added runs lift the success ratio rather than sinking it', () => {
+    applyDemoData(db);
+    const added = db.agentRuns.recent(100000).filter((r) => r.id.startsWith(DEMO_ID_PREFIX));
+    const ok = added.filter((r) => r.ok).length;
+    expect(ok / added.length).toBeGreaterThan(0.85);
+  });
+
   test('deleteByIdPrefix refuses an empty prefix', () => {
     expect(() => db.funnel.deleteByIdPrefix('')).toThrow();
+    expect(() => db.agentRuns.deleteByIdPrefix('')).toThrow();
   });
 });

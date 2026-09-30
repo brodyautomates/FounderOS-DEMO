@@ -32,6 +32,10 @@ export default async function TasksPage() {
   const crons = db.agentCrons.all();
   const cronStats = db.cronRuns.statsByCron();
   const boardUrl = process.env.PAPERCLIP_API_URL ?? null;
+  // The demo board answers without a PAPERCLIP_API_URL, so the chip tracks
+  // whether issues are actually flowing rather than whether creds exist. The
+  // deep link stays tied to boardUrl — there is no real board to open in demo.
+  const boardLive = !!boardUrl || issues.length > 0;
   const v = tasksVolume({
     tasks,
     issues,
@@ -50,7 +54,7 @@ export default async function TasksPage() {
         meta={`${v.touchesInWindow} items moved in ${WINDOW_DAYS} days · ${v.cron.runsInWindow} cron runs · ${v.board.blocked} blocked`}
         right={
           <>
-            <Chip tone={boardUrl ? 'ok' : undefined}>{boardUrl ? 'board live · paperclip' : 'board offline · paperclip'}</Chip>
+            <Chip tone={boardLive ? 'ok' : undefined}>{boardLive ? 'board live · paperclip' : 'board offline · paperclip'}</Chip>
             <Link href="/workflows" className={PILL}>
               Workflows
             </Link>

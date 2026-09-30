@@ -15,9 +15,11 @@ import { DEMO_DATA_KEY } from '@/lib/schemas';
 export function DemoDataToggle({
   initialOn,
   clientCount,
+  runCount,
 }: {
   initialOn: boolean;
   clientCount: number;
+  runCount: number;
 }) {
   const router = useRouter();
   const [on, setOn] = useState(initialOn);
@@ -50,10 +52,10 @@ export function DemoDataToggle({
           <Badge tone={on ? 'ok' : 'default'}>{on ? 'ON' : 'OFF'}</Badge>
         </div>
         <p className="max-w-prose text-[12px] leading-relaxed text-os-muted">
-          Layers {clientCount} additional example clients across both ventures, each with
-          a full touch history, on top of the data that ships with the app. Turning it off
-          removes exactly those rows and nothing else, so the shipped seed is never
-          touched.
+          Populates the whole console: {clientCount} example clients with full touch
+          histories, {runCount} agent runs, and a 12-seat agent board with its run
+          history and task lanes, layered on top of the data that ships with the app.
+          Turning it off removes exactly those rows and nothing else.
         </p>
       </div>
       <AsyncButton

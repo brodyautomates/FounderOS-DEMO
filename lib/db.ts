@@ -948,6 +948,11 @@ export function openDb(path: string) {
         .all(limit)
         .map(rowToRun);
     },
+    /** Demo-layer removal: deletes only `demo-` prefixed runs (lib/seed-demo.ts). */
+    deleteByIdPrefix(prefix: string): void {
+      if (!prefix) throw new Error('deleteByIdPrefix needs a non-empty prefix');
+      db.prepare('DELETE FROM agent_runs WHERE id LIKE ?').run(`${prefix}%`);
+    },
     insert(run: AgentRun): void {
       db.prepare(
         'INSERT OR REPLACE INTO agent_runs (id, agent_id, started_at, finished_at, ok, summary, model, tokens_in, tokens_out, cost_usd) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)',

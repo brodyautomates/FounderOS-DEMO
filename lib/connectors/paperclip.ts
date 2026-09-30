@@ -3,6 +3,7 @@ import { GATED, connected as gatedConnected } from '@/lib/connectors/demo-status
 import type { ConnectorStatus } from '@/lib/connectors/types';
 import { isAlertPosted, renderFailoverAlert, type FailoverAlert, type FailoverRun } from '@/lib/agent-failover';
 import { COCKPIT_TITLE, cockpitIssueCreateBody, cockpitRepairPatch } from '@/lib/cockpit-issue';
+import { demoAgents, demoIssues, demoOrg, demoRuns } from '@/lib/demo-board';
 
 /**
  * Paperclip: the agent harness. The board runs on the private network
@@ -249,7 +250,23 @@ async function fetchAgents(): Promise<PaperclipAgent[]> {
 }
 
 /** The live agents list, or [] when the board is unreachable/unconfigured. */
+/**
+ * Settings → Demo data. Read per call (a cheap sync SQLite hit) rather than
+ * cached at import, so flipping the switch takes effect without a restart.
+ * Dynamic import keeps the DB out of this module's static import graph, the
+ * same way lib/brand-deals.ts reaches for it.
+ */
+async function demoDataOn(): Promise<boolean> {
+  try {
+    const { getDb } = await import('@/lib/data');
+    return getDb().settings.isDemoDataOn();
+  } catch {
+    return false;
+  }
+}
+
 export async function paperclipAgents(): Promise<PaperclipAgent[]> {
+  if (await demoDataOn()) return demoAgents();
   try {
     return await fetchAgents();
   } catch {
@@ -259,6 +276,7 @@ export async function paperclipAgents(): Promise<PaperclipAgent[]> {
 
 /** The live org tree flattened to rows, or [] when unreachable. */
 export async function paperclipOrg(): Promise<PaperclipOrgNode[]> {
+  if (await demoDataOn()) return demoOrg();
   try {
     const body = await boardGet('/org');
     return flattenPaperclipOrg(Array.isArray(body) ? body : []);
@@ -269,6 +287,7 @@ export async function paperclipOrg(): Promise<PaperclipOrgNode[]> {
 
 /** Board tasks (issues), newest first, or [] when unreachable. */
 export async function paperclipIssues(limit = 30): Promise<PaperclipIssue[]> {
+  if (await demoDataOn()) return demoIssues(limit);
   try {
     const body = await boardGet(`/issues?limit=${limit}`);
     const list = Array.isArray(body) ? body : ((body as { issues?: unknown[] })?.issues ?? []);
@@ -280,6 +299,7 @@ export async function paperclipIssues(limit = 30): Promise<PaperclipIssue[]> {
 
 /** Recent heartbeat runs across the company, or [] when unreachable. */
 export async function paperclipRuns(limit = 30): Promise<PaperclipRun[]> {
+  if (await demoDataOn()) return demoRuns(limit);
   try {
     const body = await boardGet(`/heartbeat-runs?limit=${limit}`);
     const list = Array.isArray(body) ? body : ((body as { runs?: unknown[] })?.runs ?? []);
@@ -487,6 +507,8 @@ export async function postCockpitMessage(message: string): Promise<PaperclipComm
 }
 
 export async function paperclipStatus(): Promise<ConnectorStatus> {
+  if (await demoDataOn())
+    return gatedConnected('paperclip', 'Paperclip (demo board)', 'orchestration', 'Demo data on · 12 seats, 5 running');
   if (GATED)
     return gatedConnected('paperclip', 'Paperclip', 'orchestration', 'Agent harness · CEO + 8 agents on the board');
   if (!creds()) {
